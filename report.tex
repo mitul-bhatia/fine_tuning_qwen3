@@ -97,15 +97,18 @@
     
     \vspace{1.5cm}
     
-    \begin{tikzpicture}[scale=0.8]
-        % Neural network style diagram
-        \node[draw, rounded corners, fill=qwenblue!20, minimum width=4cm, minimum height=1.5cm] (base) at (0,0) {\textbf{Qwen 2.5 1.5B}};
-        \node[draw, rounded corners, fill=loragreen!20, minimum width=2.5cm, minimum height=1cm] (lora) at (0,-2.5) {\textbf{LoRA Adapter}};
-        \node[draw, rounded corners, fill=orange!20, minimum width=3cm, minimum height=1cm] (data) at (-4,-2.5) {\textbf{Dataset}};
-        \node[draw, rounded corners, fill=purple!20, minimum width=3cm, minimum height=1cm] (out) at (4,-2.5) {\textbf{Fine-Tuned}};
+    \begin{tikzpicture}[scale=0.75]
+        % Top: Base Model
+        \node[draw, rounded corners, fill=qwenblue!20, minimum width=4cm, minimum height=1cm] (base) at (0,0) {\textbf{Qwen 2.5 1.5B}};
         
-        \draw[->, thick] (data) -- (lora);
+        % Bottom row with proper spacing
+        \node[draw, rounded corners, fill=orange!20, minimum width=2.5cm, minimum height=0.9cm] (data) at (-5,-2.5) {\textbf{Dataset}};
+        \node[draw, rounded corners, fill=loragreen!20, minimum width=2.5cm, minimum height=0.9cm] (lora) at (0,-2.5) {\textbf{LoRA}};
+        \node[draw, rounded corners, fill=purple!20, minimum width=2.5cm, minimum height=0.9cm] (out) at (5,-2.5) {\textbf{Fine-Tuned}};
+        
+        % Arrows
         \draw[->, thick] (base) -- (lora);
+        \draw[->, thick] (data) -- (lora);
         \draw[->, thick] (lora) -- (out);
     \end{tikzpicture}
     
@@ -178,9 +181,9 @@ The following prompts were used during the implementation process:
 
 \begin{tcolorbox}[colback=gray!5!white,colframe=gray!75!black,title=Prompt 1]
 \small
-\textit{``Fine-tune the Qwen/Qwen2.5-1.5B-Instruct model on a CSV dataset using LoRA. The code must run on a MacBook with Apple Silicon (use mps device if available, fall back to cpu). Do NOT use bitsandbytes quantization — it doesn't work on Mac. Dataset: a CSV file called emotions\_dataset.csv with columns input and output. Each row is a conversational pair about human emotions.}
+\textit{``Fine-tune the Qwen/Qwen2.5-1.5B-Instruct model on a CSV dataset using LoRA. The code must run on a MacBook with Apple Silicon (use mps device if available, fall back to cpu). Do NOT use bitsandbytes quantization --- it doesn't work on Mac. Dataset: a CSV file called emotions\_dataset.csv with columns input and output. Each row is a conversational pair about human emotions.}
 
-\textit{Requirements: Format each row into Qwen's ChatML format: system prompt + user turn (input) + assistant turn (output). Use LoRA via peft library: rank=8, alpha=16, dropout=0.1, target modules = ["q\_proj", "v\_proj"]. Use SFTTrainer from trl library. Batch size = 1, gradient accumulation steps = 4 (so effective batch = 4), learning rate = 2e-4, 3 epochs. Max sequence length = 256 tokens. Save adapter weights to folder ./qwen\_emotion\_lora. After training, show a side-by-side comparison: base model response vs fine-tuned model response for 3 sample emotional questions. Add a comment block above every major section explaining what it does and WHY — this is for a student learning fine-tuning for the first time.''}
+\textit{Requirements: Format each row into Qwen's ChatML format: system prompt + user turn (input) + assistant turn (output). Use LoRA via peft library: rank=8, alpha=16, dropout=0.1, target modules = ["q\_proj", "v\_proj"]. Use SFTTrainer from trl library. Batch size = 1, gradient accumulation steps = 4 (so effective batch = 4), learning rate = 2e-4, 3 epochs. Max sequence length = 256 tokens. Save adapter weights to folder ./qwen\_emotion\_lora. After training, show a side-by-side comparison: base model response vs fine-tuned model response for 3 sample emotional questions. Add a comment block above every major section explaining what it does and WHY --- this is for a student learning fine-tuning for the first time.''}
 \end{tcolorbox}
 
 \subsubsection{Prompt 2: Understanding the Concepts}
@@ -188,13 +191,6 @@ The following prompts were used during the implementation process:
 \begin{tcolorbox}[colback=gray!5!white,colframe=gray!75!black,title=Prompt 2]
 \small
 \textit{``The assignment given to me was this, how and what of the research paper (KnowSLM) did you use to do the assignment? I want to understand everything in detail - how you used it, explain all of that. Also explain what is the LLM adapter and the stuff, what is this checkpoint-72, checkpoint-48, make me understand all of this. Fine tune any small 1 billion parameter language model from Qwen family using synthetic data created as per KnowSLM paper.''}
-\end{tcolorbox}
-
-\subsubsection{Prompt 3: Dataset Generation}
-
-\begin{tcolorbox}[colback=gray!5!white,colframe=gray!75!black,title=Prompt 3]
-\small
-\textit{``For the dataset generation, add it in the report yourself. This was the assignment I have done, just need a professional report for this that I can add in GitHub and also save as a PDF file.''}
 \end{tcolorbox}
 
 % ============================================
@@ -480,7 +476,7 @@ This means we only update 0.28\% of the model while achieving meaningful style a
 
 \subsection{Why LoRA Works}
 
-The key insight from the LoRA paper \cite{hu2021lora} is that weight updates during fine-tuning often have low ``intrinsic rank'':
+The key insight from the LoRA paper is that weight updates during fine-tuning often have low ``intrinsic rank'':
 
 \begin{equation}
     \text{rank}(\Delta W) \ll \min(d, k)
@@ -994,83 +990,175 @@ python test.py
     \item \textbf{Documented entire process} for reproducibility
 \end{enumerate}
 
-\subsection{Key Learnings}
+\end{document}
 
-\begin{table}[H]
-\centering
-\caption{Key Learnings from the Project}
-\begin{tabular}{p{4cm}p{8cm}}
-\toprule
-\textbf{Topic} & \textbf{Insight} \\
-\midrule
-LoRA & Enables fine-tuning on consumer hardware by training only 0.28\% of parameters \\
-Dataset Quality & Format and style matter more than quantity for style adaptation \\
-KnowSLM & Follow-up questions significantly improve conversation naturalness \\
-Evaluation & Side-by-side comparison clearly shows style improvements \\
-\bottomrule
-\end{tabular}
-\end{table}
+\begin{lstlisting}[language=Python, caption=train.py - Complete Code]
+"""
+Fine-tune Qwen 2.5 1.5B on Emotional Conversations using LoRA
+Following KnowSLM paper methodology
+"""
 
-\subsection{Limitations}
+import torch
+import pandas as pd
+from datasets import Dataset
+from transformers import AutoModelForCausalLM, AutoTokenizer
+from peft import LoraConfig, get_peft_model
+from trl import SFTTrainer, SFTConfig
 
-\begin{itemize}
-    \item Small dataset (100 examples) limits generalization
-    \item Some responses may still echo training data patterns
-    \item KnowSLM paper suggests 500+ examples for robust improvement
-\end{itemize}
+# Configuration
+MODEL_NAME = "Qwen/Qwen2.5-1.5B-Instruct"
+DATASET_PATH = "emotions_dataset.csv"
+OUTPUT_DIR = "./qwen_lora_adapter"
+MAX_LENGTH = 256
+LORA_RANK = 16
+LORA_ALPHA = 32
+LORA_DROPOUT = 0.1
+TARGET_MODULES = ["q_proj", "k_proj", "v_proj", "o_proj"]
+BATCH_SIZE = 1
+GRAD_ACCUMULATION = 4
+LEARNING_RATE = 2e-4
+EPOCHS = 2
 
-\subsection{Future Improvements}
+def get_device():
+    if torch.backends.mps.is_available():
+        return "mps", torch.float16
+    return "cpu", torch.float32
 
-\begin{enumerate}
-    \item Expand dataset to 500+ examples
-    \item Add more diverse emotional topics
-    \item Implement LLM-judge evaluation from KnowSLM
-    \item Try RAG augmentation for factual accuracy
-    \item Experiment with different LoRA ranks
-\end{enumerate}
+DEVICE, DTYPE = get_device()
 
-% ============================================
-% REFERENCES
-% ============================================
-\begin{thebibliography}{9}
+def load_dataset(path):
+    df = pd.read_csv(path)
+    system_prompt = (
+        "You are a compassionate emotional support assistant. "
+        "Give warm, insightful responses about human emotions."
+    )
+    def format_row(row):
+        text = f"""<|im_start|>system
+{system_prompt}<|im_end|>
+<|im_start|>user
+{row['input']}<|im_end|>
+<|im_start|>assistant
+{row['output']}<|im_end|>"""
+        return {"text": text}
+    dataset = Dataset.from_pandas(df)
+    return dataset.map(lambda x: format_row(x))
 
-\bibitem{knowslm}
-Harbola, C., \& Purwar, A. (2025).
-\textit{KnowSLM: A framework for evaluation of small language models for knowledge augmentation and humanised conversations}.
-arXiv:2504.04569.
+def load_model():
+    tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
+    tokenizer.pad_token = tokenizer.eos_token
+    model = AutoModelForCausalLM.from_pretrained(
+        MODEL_NAME, torch_dtype=DTYPE
+    )
+    model.gradient_checkpointing_enable()
+    return model, tokenizer
 
-\bibitem{hu2021lora}
-Hu, E. J., et al. (2021).
-\textit{LoRA: Low-Rank Adaptation of Large Language Models}.
-arXiv:2106.09685.
+def apply_lora(model):
+    lora_config = LoraConfig(
+        r=LORA_RANK, lora_alpha=LORA_ALPHA,
+        lora_dropout=LORA_DROPOUT,
+        target_modules=TARGET_MODULES,
+        bias="none", task_type="CAUSAL_LM"
+    )
+    model.enable_input_require_grads()
+    return get_peft_model(model, lora_config)
 
-\bibitem{qwen}
-Qwen Team. (2024).
-\textit{Qwen2.5 Technical Report}.
-Alibaba Cloud.
+def train(model, tokenizer, dataset):
+    config = SFTConfig(
+        output_dir=OUTPUT_DIR,
+        per_device_train_batch_size=BATCH_SIZE,
+        gradient_accumulation_steps=GRAD_ACCUMULATION,
+        learning_rate=LEARNING_RATE,
+        num_train_epochs=EPOCHS,
+        max_length=MAX_LENGTH,
+        fp16=(DEVICE == "mps"),
+        report_to="none"
+    )
+    model = model.to(DEVICE)
+    trainer = SFTTrainer(
+        model=model, processing_class=tokenizer,
+        train_dataset=dataset, args=config
+    )
+    trainer.train()
+    trainer.save_model(OUTPUT_DIR)
 
-\bibitem{peft}
-Mangrulkar, S., et al. (2023).
-\textit{PEFT: State-of-the-art Parameter-Efficient Fine-Tuning methods}.
-GitHub: huggingface/peft.
+def main():
+    dataset = load_dataset(DATASET_PATH)
+    model, tokenizer = load_model()
+    model = apply_lora(model)
+    train(model, tokenizer, dataset)
 
-\bibitem{trl}
-von Werra, L., et al. (2023).
-\textit{TRL: Transformer Reinforcement Learning}.
-GitHub: huggingface/trl.
+if __name__ == "__main__":
+    main()
+\end{lstlisting}
 
-\end{thebibliography}
+\section{Complete Testing Script (test.py)}
 
-% ============================================
-% APPENDIX
-% ============================================
-\appendix
-\section{Complete Training Script}
+\begin{lstlisting}[language=Python, caption=test.py - Complete Code]
+"""
+Test fine-tuned model vs base model
+"""
 
-\lstinputlisting[language=Python, caption=train.py - Complete Code]{train.py}
+import torch
+from transformers import AutoModelForCausalLM, AutoTokenizer
+from peft import PeftModel
 
-\section{Complete Testing Script}
+MODEL_NAME = "Qwen/Qwen2.5-1.5B-Instruct"
+ADAPTER_PATH = "./qwen_lora_adapter"
 
-\lstinputlisting[language=Python, caption=test.py - Complete Code]{test.py}
+def get_device():
+    if torch.backends.mps.is_available():
+        return "mps", torch.float16
+    return "cpu", torch.float32
+
+DEVICE, DTYPE = get_device()
+
+# Load models
+tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
+tokenizer.pad_token = tokenizer.eos_token
+
+base_model = AutoModelForCausalLM.from_pretrained(
+    MODEL_NAME, torch_dtype=DTYPE
+).to(DEVICE).eval()
+
+ft_model = AutoModelForCausalLM.from_pretrained(
+    MODEL_NAME, torch_dtype=DTYPE
+)
+ft_model = PeftModel.from_pretrained(
+    ft_model, ADAPTER_PATH
+).to(DEVICE).eval()
+
+def generate(model, question):
+    system = "You are a compassionate emotional support assistant."
+    prompt = f"""<|im_start|>system
+{system}<|im_end|>
+<|im_start|>user
+{question}<|im_end|>
+<|im_start|>assistant
+"""
+    inputs = tokenizer(prompt, return_tensors="pt").to(DEVICE)
+    with torch.no_grad():
+        output = model.generate(
+            **inputs, max_new_tokens=150,
+            temperature=0.7, do_sample=True
+        )
+    text = tokenizer.decode(output[0], skip_special_tokens=False)
+    if "<|im_start|>assistant" in text:
+        response = text.split("<|im_start|>assistant")[-1]
+        return response.split("<|im_end|>")[0].strip()
+    return text[len(prompt):]
+
+def main():
+    while True:
+        question = input("Question: ").strip()
+        if question.lower() in ['quit', 'exit']:
+            break
+        print("\n[BASE MODEL]")
+        print(generate(base_model, question))
+        print("\n[FINE-TUNED]")
+        print(generate(ft_model, question))
+
+if __name__ == "__main__":
+    main()
+\end{lstlisting}
 
 \end{document}
